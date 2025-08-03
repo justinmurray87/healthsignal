@@ -1,0 +1,32 @@
+# Commands to set up the AWS S3 bucket for HelpSignal archival
+
+# Create the bucket (replace region as needed)
+aws s3 mb s3://helpsignal-archive --region us-west-2
+
+# Configure the bucket so that individual objects are publicly readable but the bucket contents are not listable.
+aws s3api put-public-access-block --bucket helpsignal-archive \
+  --public-access-block-configuration BlockPublicAcls=false,IgnorePublicAcls=false,BlockPublicPolicy=false,RestrictPublicBuckets=false
+
+# Attach a bucket policy to allow public read access to objects
+cat > bucket-policy.json <<'POLICY'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowGetObject",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::helpsignal-archive/*"
+    }
+  ]
+}
+POLICY
+
+aws s3api put-bucket-policy --bucket helpsignal-archive --policy file://bucket-policy.json
+
+# Enable static website hosting if desired (not required for JSON archive)
+# aws s3 website s3://helpsignal-archive --index-document index.html --error-document error.html
+
+# Remove the temporary policy file
+rm -f bucket-policy.json

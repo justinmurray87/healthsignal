@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HelpSignal – Real‑Time Crisis Map</title>
+    <!-- Mapbox GL JS -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <!-- Tabletop.js for Google Sheets -->
+    <script src="https://unpkg.com/tabletop@1.5.2/src/tabletop.js"></script>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <header class="header">
+        <h1>HelpSignal</h1>
+        <p class="subtitle">Real‑time crisis monitoring and donation links</p>
+    </header>
+    <section id="controls" class="controls">
+        <div>
+            <label for="typeFilter">Event type:</label>
+            <select id="typeFilter">
+                <option value="">All</option>
+                <option value="War">War</option>
+                <option value="Famine">Famine</option>
+                <option value="Flood">Flood</option>
+                <option value="Earthquake">Earthquake</option>
+                <option value="Drought">Drought</option>
+                <option value="Other">Other</option>
+            </select>
+        </div>
+        <div>
+            <label for="severityFilter">Min. severity:</label>
+            <input type="number" id="severityFilter" min="0" max="100" value="0" />
+        </div>
+        <div>
+            <button id="safeZoneBtn">Safe Zones</button>
+        </div>
+    </section>
+    <div id="map" class="map"></div>
+    <aside id="info" class="info"></aside>
+    <footer class="footer">
+        <button id="helpBtn" class="help-btn">How to Help</button>
+    </footer>
+    <script src="map.js"></script>
+</body>
+</html>

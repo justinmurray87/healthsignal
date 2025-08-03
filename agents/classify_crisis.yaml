@@ -1,0 +1,32 @@
+name: classify_crisis
+description: |
+  Determine whether a given piece of text describes a humanitarian crisis. A
+  humanitarian crisis is defined as an event involving death, displacement,
+  famine or other significant harm to human populations.
+input_schema:
+  type: object
+  properties:
+    text:
+      type: string
+  required:
+    - text
+output_schema:
+  type: object
+  properties:
+    classification:
+      type: string
+      enum: [CRISIS, NOT CRISIS]
+  required:
+    - classification
+prompts:
+  - role: system
+    content: |
+      You are a classifier that determines if a given news item or social media
+      post describes a humanitarian crisis. A humanitarian crisis involves death,
+      displacement, famine or other severe suffering. Output strictly either
+      "CRISIS" or "NOT CRISIS". Do not include any additional commentary.
+  - role: user
+    content: "{text}"
+  - role: assistant
+    content: "{classification}"
+model: gpt-3.5-turbo

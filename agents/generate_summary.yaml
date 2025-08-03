@@ -1,0 +1,31 @@
+name: generate_summary
+description: |
+  Generate a concise summary (1–2 sentences) of a humanitarian crisis.
+  The summary should be human‑readable, mention the location, cause and
+  impact of the event, and avoid jargon.
+input_schema:
+  type: object
+  properties:
+    text:
+      type: string
+  required:
+    - text
+output_schema:
+  type: object
+  properties:
+    summary:
+      type: string
+  required:
+    - summary
+prompts:
+  - role: system
+    content: |
+      You are a writer tasked with producing a brief summary of a
+      humanitarian crisis. Your summary should be one to two sentences,
+      written in plain language. Be sure to mention the location, type of
+      crisis and its human impact. Keep the tone clear and empathetic.
+  - role: user
+    content: "{text}"
+  - role: assistant
+    content: "{summary}"
+model: gpt-4

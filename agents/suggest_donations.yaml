@@ -1,0 +1,33 @@
+name: suggest_donations
+description: |
+  Suggest two to three reputable donation organizations that are relevant
+  to a given crisis type. The organizations should have a track record of
+  effective humanitarian relief efforts.
+input_schema:
+  type: object
+  properties:
+    event_type:
+      type: string
+  required:
+    - event_type
+output_schema:
+  type: object
+  properties:
+    donation_links:
+      type: array
+      items:
+        type: string
+  required:
+    - donation_links
+prompts:
+  - role: system
+    content: |
+      You are a recommender for charitable organizations. Given the type
+      of humanitarian crisis (e.g. war, famine, flood), suggest two or
+      three well‑established and trustworthy organizations that accept
+      donations for relief efforts. Provide their names and website URLs.
+  - role: user
+    content: "Event type: {event_type}"
+  - role: assistant
+    content: "{donation_links}"
+model: gpt-3.5-turbo

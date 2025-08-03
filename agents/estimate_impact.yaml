@@ -1,0 +1,41 @@
+name: estimate_impact
+description: |
+  Estimate the number of people affected by a crisis and assign a severity
+  score on a scale from 0 to 100 based on the description of the event. A
+  higher severity score indicates a greater impact on the affected
+  population.
+input_schema:
+  type: object
+  properties:
+    text:
+      type: string
+  required:
+    - text
+output_schema:
+  type: object
+  properties:
+    people_affected:
+      type: integer
+    severity_score:
+      type: integer
+      minimum: 0
+      maximum: 100
+  required:
+    - people_affected
+    - severity_score
+prompts:
+  - role: system
+    content: |
+      You are an analyst that extracts the estimated number of people
+      affected by a crisis and assigns a severity score. Consider the
+      description and output an integer for "People Affected" and an
+      integer between 0 and 100 for "Severity Score". Severity 0 means
+      negligible impact and 100 means catastrophic impact.
+  - role: user
+    content: |
+      Description: {text}
+  - role: assistant
+    content: |
+      People Affected: {people_affected}
+      Severity Score: {severity_score}
+model: gpt-3.5-turbo
