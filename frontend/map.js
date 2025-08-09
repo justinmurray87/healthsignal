@@ -4,7 +4,6 @@
 // published with read-only access to the "Events" tab. MAPBOX_TOKEN
 // should be kept secret; consider loading it via a separate config file
 // or environment injection during build.
-const SHEET_ID = '1vw2RrQee4Lt-xIKoOw3B-U6OGVim7resu2-8LgdZbh0';
 //temp token for local testing
 //const MAPBOX_TOKEN = 'YOUR_MAPBOX_ACCESS_TOKEN';
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiaGVscHNpZ25hbCIsImEiOiJjbWR2dmh2NWcwbDNuMmxxNThnMDA1OTg1In0.L5jlQuL3rmaWz3UpNrxo0g';
@@ -28,9 +27,7 @@ let eventsData = [];
 function init() {
   // Fetch data from Google Sheets using Tabletop
   Tabletop.init({
-    key: SHEET_ID,
-    simpleSheet: true,
-    wanted: ['Events'],
+    url: 'https://docs.google.com/spreadsheets/d/1vw2RrQee4Lt-xIKoOw3B-U60GVim7resu2-8LgdZbh0/export?format=csv&gid=0',
     callback: (data) => {
       eventsData = data;
       renderMarkers();
