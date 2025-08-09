@@ -67,6 +67,15 @@ except ImportError:
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# Configure logging to console for local execution with detailed output
+if not any(isinstance(handler, logging.StreamHandler) for handler in logger.handlers):
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    handler.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)  # Set to DEBUG for maximum verbosity
+
 # Read environment variables
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
@@ -102,6 +111,7 @@ def fetch_news(limit: int = 10) -> List[Dict[str, Any]]:
         A list of dictionaries with keys: title, description, url, published_at,
         and location (if available).
     """
+    logger.info(f"Starting fetch_news with limit={limit}")
     articles: List[Dict[str, Any]] = []
     if not NEWS_API_KEY:
         logger.warning("NEWS_API_KEY not provided; fetch_news will return an empty list.")
@@ -111,11 +121,15 @@ def fetch_news(limit: int = 10) -> List[Dict[str, Any]]:
         "https://newsapi.org/v2/top-headlines?language=en&sortBy=publishedAt"
         f"&pageSize={limit}"
     )
+    logger.debug(f"NewsAPI URL: {url}")
     headers = {"X-Api-Key": NEWS_API_KEY}
     try:
+        logger.debug("Making request to NewsAPI...")
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         data = response.json()
+        logger.debug(f"NewsAPI response status: {response.status_code}")
+        logger.debug(f"NewsAPI returned {len(data.get('articles', []))} articles")
         for item in data.get("articles", []):
             articles.append(
                 {
@@ -126,8 +140,10 @@ def fetch_news(limit: int = 10) -> List[Dict[str, Any]]:
                     "location": extract_location(item.get("title", "") + " " + (item.get("description") or "")),
                 }
             )
+        logger.info(f"Successfully fetched {len(articles)} articles from NewsAPI")
     except Exception as exc:
         logger.error(f"Error fetching news: {exc}")
+    logger.debug(f"fetch_news returning {len(articles)} articles")
     return articles
 
 
@@ -141,6 +157,7 @@ def fetch_rss_articles(limit: int = 10) -> List[Dict[str, Any]]:
         A list of dictionaries with keys: title, description, url, published_at,
         location, and source.
     """
+    logger.info(f"Starting fetch_rss_articles with limit={limit}")
     articles: List[Dict[str, Any]] = []
     if feedparser is None:
         logger.warning("feedparser not installed; RSS feeds will be skipped.")
@@ -150,6 +167,8 @@ def fetch_rss_articles(limit: int = 10) -> List[Dict[str, Any]]:
         logger.info("No RSS feed URLs configured.")
         return articles
     
+    logger.debug(f"RSS feed URLs configured: {RSS_FEED_URLS}")
+    
     for feed_url in RSS_FEED_URLS:
         feed_url = feed_url.strip()
         if not feed_url:
@@ -158,6 +177,7 @@ def fetch_rss_articles(limit: int = 10) -> List[Dict[str, Any]]:
         try:
             logger.info(f"Fetching RSS feed: {feed_url}")
             feed = feedparser.parse(feed_url)
+            logger.debug(f"RSS feed parsed, found {len(feed.entries)} entries")
             
             for entry in feed.entries[:limit]:
                 # Extract publication date
@@ -182,9 +202,13 @@ def fetch_rss_articles(limit: int = 10) -> List[Dict[str, Any]]:
                     "location": extract_location(getattr(entry, 'title', '') + " " + description),
                     "source": "RSS"
                 })
+            
+            logger.info(f"Successfully processed {min(len(feed.entries), limit)} entries from {feed_url}")
                 
         except Exception as exc:
             logger.error(f"Error fetching RSS feed {feed_url}: {exc}")
+    
+    logger.info(f"fetch_rss_articles returning {len(articles)} articles")
     
     return articles
 
@@ -331,6 +355,7 @@ def classify_crisis(text: str) -> str:
     Uses the OpenAI ChatCompletion endpoint with the prompt defined in
     classify_crisis.yaml. Returns 'CRISIS' or 'NOT CRISIS'.
     """
+    logger.debug(f"classify_crisis called with text: {text[:200]}...")
     if not OPENAI_API_KEY:
         logger.warning("OPENAI_API_KEY not set; defaulting classification to NOT CRISIS.")
         return "NOT CRISIS"
@@ -348,6 +373,7 @@ def classify_crisis(text: str) -> str:
         {"role": "user", "content": text},
     ]
     try:
+        logger.debug("Making OpenAI classification request...")
         resp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=messages,
@@ -355,7 +381,10 @@ def classify_crisis(text: str) -> str:
             temperature=0,
         )
         classification = resp.choices[0].message["content"].strip().upper()
-        return "CRISIS" if "CRISIS" in classification else "NOT CRISIS"
+        logger.debug(f"OpenAI classification response: {classification}")
+        result = "CRISIS" if "CRISIS" in classification else "NOT CRISIS"
+        logger.info(f"Classification result: {result}")
+        return result
     except Exception as exc:
         logger.error(f"OpenAI classification error: {exc}")
         return "NOT CRISIS"
@@ -367,6 +396,7 @@ def estimate_impact(text: str) -> Tuple[int, int]:
     Returns a tuple of (people_affected, severity_score). On error, returns
     (0, 0).
     """
+    logger.debug(f"estimate_impact called with text: {text[:200]}...")
     if not OPENAI_API_KEY:
         logger.warning("OPENAI_API_KEY not set; defaulting impact to 0,0.")
         return 0, 0
@@ -384,6 +414,7 @@ def estimate_impact(text: str) -> Tuple[int, int]:
         {"role": "user", "content": f"Description: {text}"},
     ]
     try:
+        logger.debug("Making OpenAI impact estimation request...")
         resp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=messages,
@@ -391,6 +422,7 @@ def estimate_impact(text: str) -> Tuple[int, int]:
             temperature=0,
         )
         content = resp.choices[0].message["content"].strip()
+        logger.debug(f"OpenAI impact estimation response: {content}")
         people = 0
         severity = 0
         for line in content.split("\n"):
@@ -406,6 +438,7 @@ def estimate_impact(text: str) -> Tuple[int, int]:
                         severity = int("".join(filter(str.isdigit, value)))
                     except ValueError:
                         severity = 0
+        logger.info(f"Impact estimation result: people_affected={people}, severity_score={severity}")
         return people, severity
     except Exception as exc:
         logger.error(f"OpenAI impact estimation error: {exc}")
@@ -417,6 +450,7 @@ def generate_summary(text: str) -> str:
 
     Returns an empty string on failure.
     """
+    logger.debug(f"generate_summary called with text: {text[:200]}...")
     if not OPENAI_API_KEY:
         logger.warning("OPENAI_API_KEY not set; defaulting summary to empty.")
         return ""
@@ -434,6 +468,7 @@ def generate_summary(text: str) -> str:
         {"role": "user", "content": text},
     ]
     try:
+        logger.debug("Making OpenAI summary generation request...")
         resp = openai.ChatCompletion.create(
             model="gpt-4",
             messages=messages,
@@ -441,6 +476,8 @@ def generate_summary(text: str) -> str:
             temperature=0.7,
         )
         summary = resp.choices[0].message["content"].strip()
+        logger.debug(f"OpenAI summary response: {summary}")
+        logger.info(f"Generated summary: {summary}")
         return summary
     except Exception as exc:
         logger.error(f"OpenAI summary generation error: {exc}")
@@ -452,6 +489,7 @@ def suggest_donations(event_type: str) -> List[str]:
 
     Returns a list of organization names and URLs.
     """
+    logger.debug(f"suggest_donations called with event_type: {event_type}")
     if not OPENAI_API_KEY:
         logger.warning("OPENAI_API_KEY not set; defaulting donation suggestions.")
         return ["https://www.directrelief.org/", "https://www.unhcr.org/"]
@@ -468,6 +506,7 @@ def suggest_donations(event_type: str) -> List[str]:
         {"role": "user", "content": f"Event type: {event_type}"},
     ]
     try:
+        logger.debug("Making OpenAI donation suggestion request...")
         resp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=messages,
@@ -475,8 +514,10 @@ def suggest_donations(event_type: str) -> List[str]:
             temperature=0,
         )
         content = resp.choices[0].message["content"].strip()
+        logger.debug(f"OpenAI donation suggestion response: {content}")
         # Split by commas or newlines and filter out empty strings
         links = [item.strip() for item in content.replace("\n", ",").split(",") if item.strip()]
+        logger.info(f"Donation suggestions: {links[:3]}")
         return links[:3]
     except Exception as exc:
         logger.error(f"OpenAI donation suggestion error: {exc}")
@@ -488,19 +529,28 @@ def geocode(location: str) -> Tuple[float, float]:
 
     Returns (0.0, 0.0) if geocoding fails.
     """
+    logger.debug(f"geocode called with location: {location}")
     if not OPENCAGE_API_KEY or not location:
+        logger.warning(f"Geocoding skipped - OPENCAGE_API_KEY: {'set' if OPENCAGE_API_KEY else 'not set'}, location: {location}")
         return 0.0, 0.0
     url = (
         "https://api.opencagedata.com/geocode/v1/json"
         f"?q={requests.utils.quote(location)}&key={OPENCAGE_API_KEY}&limit=1"
     )
+    logger.debug(f"OpenCage geocoding URL: {url}")
     try:
+        logger.debug("Making OpenCage geocoding request...")
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
+        logger.debug(f"OpenCage response status: {response.status_code}")
         if data.get("results"):
             geometry = data["results"][0]["geometry"]
-            return geometry.get("lat", 0.0), geometry.get("lng", 0.0)
+            lat, lng = geometry.get("lat", 0.0), geometry.get("lng", 0.0)
+            logger.info(f"Geocoded '{location}' to lat={lat}, lng={lng}")
+            return lat, lng
+        else:
+            logger.warning(f"No geocoding results found for location: {location}")
     except Exception as exc:
         logger.error(f"Geocoding error: {exc}")
     return 0.0, 0.0
@@ -512,19 +562,26 @@ def write_to_sheet(row: List[Any]) -> None:
     Expects GOOGLE_SERVICE_ACCOUNT_JSON and GOOGLE_SHEET_ID environment variables to
     be set. The row should be a list matching the sheet columns.
     """
+    logger.info(f"write_to_sheet called with row data: {row}")
     if service_account is None or build is None:
         logger.warning("Google API client libraries not available; skipping sheet write.")
         return
     if not GOOGLE_SERVICE_ACCOUNT_JSON or not GOOGLE_SHEET_ID:
         logger.warning("Google Sheets credentials not configured; skipping sheet write.")
+        logger.debug(f"GOOGLE_SERVICE_ACCOUNT_JSON: {'set' if GOOGLE_SERVICE_ACCOUNT_JSON else 'not set'}")
+        logger.debug(f"GOOGLE_SHEET_ID: {'set' if GOOGLE_SHEET_ID else 'not set'}")
         return
     try:
+        logger.debug(f"Loading service account credentials from: {GOOGLE_SERVICE_ACCOUNT_JSON}")
         creds = service_account.Credentials.from_service_account_file(
             GOOGLE_SERVICE_ACCOUNT_JSON,
             scopes=["https://www.googleapis.com/auth/spreadsheets"],
         )
+        logger.debug("Building Google Sheets service...")
         service = build("sheets", "v4", credentials=creds)
         body = {"values": [row]}
+        logger.debug(f"Appending to sheet ID: {GOOGLE_SHEET_ID}")
+        logger.debug(f"Row data being written: {body}")
         service.spreadsheets().values().append(
             spreadsheetId=GOOGLE_SHEET_ID,
             range="Events!A1",
@@ -534,6 +591,7 @@ def write_to_sheet(row: List[Any]) -> None:
         logger.info("Row appended to Google Sheet.")
     except Exception as exc:
         logger.error(f"Error writing to Google Sheet: {exc}")
+        logger.debug(f"Full exception details: {exc}", exc_info=True)
 
 
 def save_to_gcs(event_id: str, data: Dict[str, Any]) -> None:
@@ -543,6 +601,7 @@ def save_to_gcs(event_id: str, data: Dict[str, Any]) -> None:
     The blob is made publicly readable so that the frontend can access it if
     necessary. The bucket should be configured to prevent listing.
     """
+    logger.debug(f"save_to_gcs called with event_id: {event_id}")
     if storage is None:
         logger.warning("google-cloud-storage is not available; skipping GCS upload.")
         return
@@ -551,10 +610,13 @@ def save_to_gcs(event_id: str, data: Dict[str, Any]) -> None:
         return
     now = datetime.now(timezone.utc)
     key = f"events/{now:%Y}/{now:%m}/{now:%d}/{event_id}.json"
+    logger.debug(f"GCS key: {key}")
     try:
+        logger.debug("Creating GCS client...")
         client = storage.Client()  # uses default credentials from environment
         bucket = client.bucket(GCS_BUCKET_NAME)
         blob = bucket.blob(key)
+        logger.debug(f"Uploading JSON data to GCS: {json.dumps(data)[:200]}...")
         blob.upload_from_string(json.dumps(data), content_type="application/json")
         # Make the object publicly readable. If you prefer to control public
         # access via bucket IAM policies, remove the next line.
@@ -562,6 +624,7 @@ def save_to_gcs(event_id: str, data: Dict[str, Any]) -> None:
         logger.info(f"Event archived to GCS at {key}")
     except Exception as exc:
         logger.error(f"Error uploading to GCS: {exc}")
+        logger.debug(f"Full exception details: {exc}", exc_info=True)
 
 
 def process_event(article: Dict[str, Any]) -> None:
@@ -570,24 +633,45 @@ def process_event(article: Dict[str, Any]) -> None:
     Args:
         article: A dictionary representing a news article.
     """
+    logger.info(f"Processing article: {article.get('title', 'No title')}")
+    logger.debug(f"Full article data: {article}")
+    
     title = article.get("title", "")
     description = article.get("description", "")
     full_text = f"{title}\n\n{description}"
+    logger.debug(f"Full text for processing: {full_text}")
+    
     classification = classify_crisis(full_text)
+    logger.info(f"Crisis classification: {classification}")
     if classification != "CRISIS":
+        logger.info("Article not classified as crisis, skipping...")
         return
 
     people_affected, severity_score = estimate_impact(full_text)
+    logger.info(f"Impact estimation: {people_affected} people affected, severity {severity_score}")
+    
     summary = generate_summary(full_text)
+    logger.info(f"Generated summary: {summary}")
+    
     # If the article provided a location, use it; otherwise use a placeholder or
     # fallback extraction method.
     location = article.get("location") or "Unknown"
+    logger.info(f"Location: {location}")
+    
     lat, lng = geocode(location)
+    logger.info(f"Geocoded coordinates: lat={lat}, lng={lng}")
+    
     # Determine event type from keywords or categories; this is a simple heuristic.
     event_type = infer_event_type(full_text)
+    logger.info(f"Inferred event type: {event_type}")
+    
     donation_links = suggest_donations(event_type)
+    logger.info(f"Donation links: {donation_links}")
+    
     event_id = str(uuid.uuid4())
     timestamp = datetime.now(timezone.utc).isoformat()
+    logger.info(f"Generated event_id: {event_id}, timestamp: {timestamp}")
+    
     # Compose row for Google Sheets
     row = [
         timestamp,
@@ -601,7 +685,9 @@ def process_event(article: Dict[str, Any]) -> None:
         severity_score,
         json.dumps(donation_links),
     ]
+    logger.info(f"Composed row for Google Sheets: {row}")
     write_to_sheet(row)
+    
     # Compose full event record for S3 archive
     event_record = {
         "timestamp": timestamp,
@@ -618,12 +704,17 @@ def process_event(article: Dict[str, Any]) -> None:
         "donation_links": donation_links,
         "source_url": article.get("url"),
     }
+    logger.debug(f"Event record for GCS: {event_record}")
     save_to_gcs(event_id, event_record)
+    
     # Optionally tweet
     try:
+        logger.debug("Attempting to tweet crisis...")
         tweet_crisis(event_record)
     except Exception as exc:
         logger.error(f"Error tweeting crisis: {exc}")
+    
+    logger.info(f"Finished processing article: {title}")
 
 
 def infer_event_type(text: str) -> str:
@@ -689,39 +780,58 @@ def main(request=None) -> str:
     For Cloud Scheduler triggers, request will be None.
     """
     logger.info("HelpSignal backend invoked")
+    logger.debug("Starting main function execution")
     
     # Collect articles from all sources
     all_articles = []
     
     # Fetch from NewsAPI if available
     if NEWS_API_KEY:
+        logger.info("Fetching articles from NewsAPI...")
         news_articles = fetch_news(limit=15)
         all_articles.extend(news_articles)
         logger.info(f"Fetched {len(news_articles)} articles from NewsAPI")
+    else:
+        logger.info("NewsAPI key not configured, skipping NewsAPI")
     
     # Fetch from RSS feeds
+    logger.info("Fetching articles from RSS feeds...")
     rss_articles = fetch_rss_articles(limit=10)
     all_articles.extend(rss_articles)
     logger.info(f"Fetched {len(rss_articles)} articles from RSS feeds")
     
     # Fetch from Twitter
+    logger.info("Fetching posts from Twitter...")
     twitter_posts = fetch_twitter_posts(limit=15)
     all_articles.extend(twitter_posts)
     logger.info(f"Fetched {len(twitter_posts)} posts from Twitter")
     
     # Fetch from Reddit
+    logger.info("Fetching posts from Reddit...")
     reddit_posts = fetch_reddit_posts(limit=15)
     all_articles.extend(reddit_posts)
     logger.info(f"Fetched {len(reddit_posts)} posts from Reddit")
     
     logger.info(f"Total articles/posts collected: {len(all_articles)}")
     
+    if not all_articles:
+        logger.warning("No articles collected from any source!")
+        return "OK - No articles to process"
+    
     # Process each article/post
+    processed_count = 0
+    crisis_count = 0
     for article in all_articles:
         try:
+            logger.info(f"Processing article {processed_count + 1}/{len(all_articles)}")
             process_event(article)
+            processed_count += 1
         except Exception as exc:
             logger.error(f"Error processing event: {exc}")
+            logger.debug(f"Full exception details: {exc}", exc_info=True)
+    
+    logger.info(f"Processing complete. Processed {processed_count} articles")
+    logger.info("HelpSignal backend execution finished")
     
     return "OK"
 
