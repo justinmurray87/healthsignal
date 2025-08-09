@@ -170,16 +170,6 @@ async function fetchSheetDataJSONP() {
     console.log("JSONP approach failed:", error);
   }
 }
-    
-    eventsData = data;
-    renderMarkers();
-    updateTicker();
-    
-  } catch (error) {
-    console.error("Error fetching sheet data:", error);
-    document.getElementById('tickerContent').innerHTML = '<span class="ticker-item">Error loading crisis data</span>';
-  }
-}
 
 // Initialize the application
 function init() {
