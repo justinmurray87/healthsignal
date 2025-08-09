@@ -30,7 +30,8 @@ function init() {
   console.log("CSV URL:", 'https://docs.google.com/spreadsheets/d/1vw2RrQee4Lt-xIKoOw3B-U60GVim7resu2-8LgdZbh0/export?format=csv&gid=0');
   
   Tabletop.init({
-    url: 'https://docs.google.com/spreadsheets/d/1vw2RrQee4Lt-xIKoOw3B-U60GVim7resu2-8LgdZbh0/export?format=csv&gid=0',
+    key: '1vw2RrQee4Lt-xIKoOw3B-U60GVim7resu2-8LgdZbh0',
+    simpleSheet: true,
     callback: (data) => {
       console.log("Data received from Google Sheet:", data);
       eventsData = data;
