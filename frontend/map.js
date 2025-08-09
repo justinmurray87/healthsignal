@@ -26,6 +26,9 @@ let eventsData = [];
 // Initialize the application
 function init() {
   // Fetch data from Google Sheets using Tabletop
+  console.log("Initializing Tabletop.js...");
+  console.log("CSV URL:", 'https://docs.google.com/spreadsheets/d/1vw2RrQee4Lt-xIKoOw3B-U60GVim7resu2-8LgdZbh0/export?format=csv&gid=0');
+  
   Tabletop.init({
     url: 'https://docs.google.com/spreadsheets/d/1vw2RrQee4Lt-xIKoOw3B-U60GVim7resu2-8LgdZbh0/export?format=csv&gid=0',
     callback: (data) => {
@@ -33,7 +36,12 @@ function init() {
       eventsData = data;
       renderMarkers();
     },
+    error: (error) => {
+      console.error("Tabletop.js error:", error);
+    },
+    debug: true
   });
+  
   // Add listeners for filters
   document.getElementById('typeFilter').addEventListener('change', renderMarkers);
   document.getElementById('severityFilter').addEventListener('input', renderMarkers);
