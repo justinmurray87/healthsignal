@@ -8,8 +8,53 @@
 //const MAPBOX_TOKEN = 'YOUR_MAPBOX_ACCESS_TOKEN';
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiaGVscHNpZ25hbCIsImEiOiJjbWR2dmh2NWcwbDNuMmxxNThnMDA1OTg1In0.L5jlQuL3rmaWz3UpNrxo0g';
 
-// CSV URL for the published Google Sheet
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/1vw2RrQee4Lt-xIKoOw3B-U60GVim7resu2-8LgdZbh0/export?format=csv&gid=0';
+// Try multiple URL formats for Google Sheets CSV export
+const SHEET_ID = '1vw2RrQee4Lt-xIKoOw3B-U60GVim7resu2-8LgdZbh0';
+const CSV_URLS = [
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`,
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv`,
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Events`
+];
+
+// Sample data for testing when Google Sheets is not accessible
+const SAMPLE_DATA = [
+  {
+    timestamp: '2024-01-15T10:30:00Z',
+    event_id: 'sample-001',
+    location: 'Gaza Strip',
+    lat: '31.3547',
+    lng: '34.3088',
+    event_type: 'War',
+    summary: 'Ongoing conflict affecting thousands of civilians in the Gaza Strip.',
+    people_affected: '50000',
+    severity_score: '85',
+    donation_links: '["https://www.directrelief.org/", "https://www.unhcr.org/"]'
+  },
+  {
+    timestamp: '2024-01-14T08:15:00Z',
+    event_id: 'sample-002',
+    location: 'Somalia',
+    lat: '5.1521',
+    lng: '46.1996',
+    event_type: 'Famine',
+    summary: 'Severe drought and food insecurity affecting rural communities in Somalia.',
+    people_affected: '25000',
+    severity_score: '70',
+    donation_links: '["https://www.wfp.org/", "https://www.oxfam.org/"]'
+  },
+  {
+    timestamp: '2024-01-13T14:45:00Z',
+    event_id: 'sample-003',
+    location: 'Turkey',
+    lat: '37.0662',
+    lng: '37.3833',
+    event_type: 'Earthquake',
+    summary: 'Major earthquake strikes southeastern Turkey, causing widespread damage.',
+    people_affected: '100000',
+    severity_score: '90',
+    donation_links: '["https://www.redcross.org/", "https://www.msf.org/"]'
+  }
+];
 
 // Set Mapbox access token
 mapboxgl.accessToken = MAPBOX_TOKEN;
@@ -66,21 +111,65 @@ function parseCSV(csvText) {
   return data;
 }
 
-// Function to fetch data from Google Sheets CSV
+// Function to fetch data from Google Sheets CSV with fallback
 async function fetchSheetData() {
-  try {
-    console.log("Fetching data from CSV URL:", CSV_URL);
-    const response = await fetch(CSV_URL);
+  console.log("Attempting to fetch data from Google Sheets...");
+  
+  // Try each URL format
+  for (let i = 0; i < CSV_URLS.length; i++) {
+    const url = CSV_URLS[i];
+    console.log(`Trying URL ${i + 1}/${CSV_URLS.length}:`, url);
     
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+      const response = await fetch(url);
+      
+      if (response.ok) {
+        const csvText = await response.text();
+        console.log("Successfully fetched CSV data:", csvText.substring(0, 200) + "...");
+        
+        const data = parseCSV(csvText);
+        console.log("Parsed CSV data:", data);
+        
+        if (data && data.length > 0) {
+          eventsData = data;
+          renderMarkers();
+          updateTicker();
+          return; // Success! Exit the function
+        }
+      }
+    } catch (error) {
+      console.log(`URL ${i + 1} failed:`, error.message);
+    }
+  }
+  
+  // If all URLs failed, use sample data
+  console.warn("All Google Sheets URLs failed. Using sample data for demonstration.");
+  eventsData = SAMPLE_DATA;
+  renderMarkers();
+  updateTicker();
+}
+
+// Alternative function to try JSONP approach (Google Sheets sometimes supports this)
+async function fetchSheetDataJSONP() {
+  try {
+    const jsonpUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Events`;
+    console.log("Trying JSONP approach:", jsonpUrl);
+    
+    const response = await fetch(jsonpUrl);
+    const text = await response.text();
+    
+    // Google Sheets JSONP response starts with a callback, we need to extract the JSON
+    const jsonMatch = text.match(/google\.visualization\.Query\.setResponse\((.*)\);/);
+    if (jsonMatch) {
+      const jsonData = JSON.parse(jsonMatch[1]);
+      console.log("JSONP data received:", jsonData);
+      // Process the Google Sheets JSON format here if needed
     }
     
-    const csvText = await response.text();
-    console.log("Raw CSV data received:", csvText.substring(0, 500) + "...");
-    
-    const data = parseCSV(csvText);
-    console.log("Parsed CSV data:", data);
+  } catch (error) {
+    console.log("JSONP approach failed:", error);
+  }
+}
     
     eventsData = data;
     renderMarkers();
