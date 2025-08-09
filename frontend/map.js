@@ -4,7 +4,7 @@
 // published with read-only access to the "Events" tab. MAPBOX_TOKEN
 // should be kept secret; consider loading it via a separate config file
 // or environment injection during build.
-const SHEET_ID = '2PACX-1vS2TKxAysNVY-Ll1y2noN1D7t0oCmZqT-cd_LoFfxrpAz_d1lwXxE9b__maJIr7aUAboF17VW0Uv5kD';
+const SHEET_ID = '1vw2RrQee4Lt-xIKoOw3B-U6OGVim7resu2-8LgdZbh0';
 //temp token for local testing
 //const MAPBOX_TOKEN = 'YOUR_MAPBOX_ACCESS_TOKEN';
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiaGVscHNpZ25hbCIsImEiOiJjbWR2dmh2NWcwbDNuMmxxNThnMDA1OTg1In0.L5jlQuL3rmaWz3UpNrxo0g';
