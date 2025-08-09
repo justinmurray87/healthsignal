@@ -64,6 +64,8 @@ services. A high‑level view:
 
 ## Setup
 
+**Important Note**: This project does not use `npm` for dependency management. Python dependencies are managed via `pip` using `scripts/requirements.txt`, and frontend libraries are included directly via CDN links in `frontend/index.html`. Do not run `npm install` or other npm commands.
+
 ### 1. Prepare your accounts
 
 1. **OpenAI** – Obtain an API key with access to GPT‑3.5 and GPT‑4. Create an
