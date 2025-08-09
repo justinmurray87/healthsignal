@@ -14,7 +14,7 @@ mapboxgl.accessToken = MAPBOX_TOKEN;
 // Create the Mapbox map
 const map = new mapboxgl.Map({
   container: 'map',
-  style: 'mapbox://styles/mapbox/light-v11',
+  style: 'mapbox://styles/mapbox/light-v10',
   center: [0, 20],
   zoom: 1.5,
   projection: 'globe'
@@ -39,8 +39,20 @@ function init() {
   // Add listeners for filters
   document.getElementById('typeFilter').addEventListener('change', renderMarkers);
   document.getElementById('severityFilter').addEventListener('input', renderMarkers);
-  document.getElementById('safeZoneBtn').addEventListener('click', toggleSafeZones);
-  document.getElementById('helpBtn').addEventListener('click', openHelp);
+  document.getElementById('severityFilter').addEventListener('input', updateSeverityLabel);
+  
+  // Initialize severity label
+  updateSeverityLabel();
+  
+  // Initialize ticker
+  updateTicker();
+  setInterval(updateTicker, 30000); // Update every 30 seconds
+}
+
+// Update severity label
+function updateSeverityLabel() {
+  const severityValue = document.getElementById('severityFilter').value;
+  document.getElementById('severityValue').textContent = severityValue;
 }
 
 // Render markers on the map based on current filters
@@ -128,6 +140,7 @@ function getMarkerSize(severity, peopleAffected) {
 // Display details about a selected event
 function showInfo(event) {
   const info = document.getElementById('info');
+  info.classList.add('active');
   const donationLinks = safeParseJSON(event.donation_links) || [];
   const linksList = donationLinks
     .map((url) => `<li><a href="${url}" target="_blank" rel="noopener">${url}</a></li>`) // sanitize by default
@@ -161,27 +174,72 @@ function showInfo(event) {
   `;
 }
 
-// Toggle safe zones view – show only events below a certain severity
-let showingSafeZones = false;
-function toggleSafeZones() {
-  showingSafeZones = !showingSafeZones;
-  const severityInput = document.getElementById('severityFilter');
-  if (showingSafeZones) {
-    severityInput.value = '50';
-  } else {
-    severityInput.value = '0';
+// Update ticker with continental crisis summaries
+function updateTicker() {
+  if (eventsData.length === 0) {
+    document.getElementById('tickerContent').innerHTML = '<span class="ticker-item">Loading global crisis data...</span>';
+    return;
   }
-  renderMarkers();
+  
+  // Group events by continent (simplified)
+  const continents = {
+    'Africa': { starving: 0, conflict: 0, displaced: 0 },
+    'Asia': { starving: 0, conflict: 0, displaced: 0 },
+    'Europe': { starving: 0, conflict: 0, displaced: 0 },
+    'Americas': { starving: 0, conflict: 0, displaced: 0 },
+    'Oceania': { starving: 0, conflict: 0, displaced: 0 }
+  };
+  
+  eventsData.forEach(event => {
+    const continent = getContinent(event.location);
+    const peopleAffected = parseInt(event.people_affected, 10) || 0;
+    
+    if (event.event_type === 'Famine') {
+      continents[continent].starving += peopleAffected;
+    } else if (event.event_type === 'War') {
+      continents[continent].conflict += peopleAffected;
+    } else {
+      continents[continent].displaced += peopleAffected;
+    }
+  });
+  
+  // Generate ticker content
+  const tickerItems = Object.entries(continents).map(([continent, stats]) => {
+    const parts = [];
+    if (stats.starving > 0) parts.push(`${formatNumber(stats.starving)} starving`);
+    if (stats.conflict > 0) parts.push(`${formatNumber(stats.conflict)} in conflict`);
+    if (stats.displaced > 0) parts.push(`${formatNumber(stats.displaced)} displaced`);
+    
+    return parts.length > 0 ? `${continent}: ${parts.join(', ')}` : null;
+  }).filter(Boolean);
+  
+  if (tickerItems.length === 0) {
+    tickerItems.push('No active crises detected');
+  }
+  
+  document.getElementById('tickerContent').innerHTML = 
+    tickerItems.map(item => `<span class="ticker-item">${item}</span>`).join('');
 }
 
-// Open help page – for now simply scrolls to the first donation link if present
-function openHelp() {
-  if (eventsData.length === 0) return;
-  const first = eventsData[0];
-  const links = safeParseJSON(first.donation_links);
-  if (links && links.length > 0) {
-    window.open(links[0], '_blank');
+// Simple continent mapping based on location
+function getContinent(location) {
+  const loc = location.toLowerCase();
+  if (loc.includes('africa') || loc.includes('nigeria') || loc.includes('kenya') || loc.includes('ethiopia') || loc.includes('sudan')) return 'Africa';
+  if (loc.includes('asia') || loc.includes('china') || loc.includes('india') || loc.includes('japan') || loc.includes('afghanistan')) return 'Asia';
+  if (loc.includes('europe') || loc.includes('ukraine') || loc.includes('france') || loc.includes('germany') || loc.includes('uk')) return 'Europe';
+  if (loc.includes('america') || loc.includes('usa') || loc.includes('canada') || loc.includes('brazil') || loc.includes('mexico')) return 'Americas';
+  if (loc.includes('australia') || loc.includes('oceania') || loc.includes('new zealand')) return 'Oceania';
+  return 'Africa'; // Default
+}
+
+// Format numbers for display
+function formatNumber(num) {
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1) + 'M';
+  } else if (num >= 1000) {
+    return (num / 1000).toFixed(0) + 'K';
   }
+  return num.toString();
 }
 
 // Parse JSON strings safely
@@ -212,11 +270,16 @@ window.addEventListener('DOMContentLoaded', () => {
     
     // Add atmosphere for globe view
     map.setFog({
-      'color': 'rgb(186, 210, 235)',
-      'high-color': 'rgb(36, 92, 223)',
+      'color': 'rgb(220, 220, 220)',
+      'high-color': 'rgb(180, 180, 180)',
       'horizon-blend': 0.02,
-      'space-color': 'rgb(11, 11, 25)',
-      'star-intensity': 0.6
+      'space-color': 'rgb(240, 240, 240)',
+      'star-intensity': 0.2
     });
+  });
+  
+  // Hide info panel when clicking on map
+  map.on('click', () => {
+    document.getElementById('info').classList.remove('active');
   });
 });

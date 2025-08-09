@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HelpSignal – Real‑Time Crisis Map</title>
+    <title>HelpSignal – Global Crisis Monitor</title>
     <!-- Mapbox GL JS -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
@@ -13,35 +13,44 @@
 </head>
 <body>
     <header class="header">
-        <h1>HelpSignal</h1>
-        <p class="subtitle">Real‑time crisis monitoring and donation links</p>
+        <div class="header-left">
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="16" cy="16" r="14" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <circle cx="16" cy="16" r="8" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <circle cx="16" cy="16" r="3" fill="currentColor"/>
+                    <path d="M16 2v6M16 24v6M2 16h6M24 16h6" stroke="currentColor" stroke-width="2"/>
+                </svg>
+            </div>
+            <h1 class="site-title">HelpSignal</h1>
+        </div>
+        <div class="header-right">
+            <div class="controls">
+                <select id="typeFilter" class="filter-select">
+                    <option value="">All Events</option>
+                    <option value="War">War</option>
+                    <option value="Famine">Famine</option>
+                    <option value="Flood">Flood</option>
+                    <option value="Earthquake">Earthquake</option>
+                    <option value="Drought">Drought</option>
+                    <option value="Other">Other</option>
+                </select>
+                <input type="range" id="severityFilter" min="0" max="100" value="0" class="severity-slider" />
+                <span class="severity-label">Severity: <span id="severityValue">0</span></span>
+            </div>
+        </div>
     </header>
-    <section id="controls" class="controls">
-        <div>
-            <label for="typeFilter">Event type:</label>
-            <select id="typeFilter">
-                <option value="">All</option>
-                <option value="War">War</option>
-                <option value="Famine">Famine</option>
-                <option value="Flood">Flood</option>
-                <option value="Earthquake">Earthquake</option>
-                <option value="Drought">Drought</option>
-                <option value="Other">Other</option>
-            </select>
-        </div>
-        <div>
-            <label for="severityFilter">Min. severity:</label>
-            <input type="number" id="severityFilter" min="0" max="100" value="0" />
-        </div>
-        <div>
-            <button id="safeZoneBtn">Safe Zones</button>
-        </div>
-    </section>
+    
     <div id="map" class="map"></div>
+    
     <aside id="info" class="info"></aside>
-    <footer class="footer">
-        <button id="helpBtn" class="help-btn">How to Help</button>
+    
+    <footer class="ticker-container">
+        <div class="ticker-content" id="tickerContent">
+            <span class="ticker-item">Loading global crisis data...</span>
+        </div>
     </footer>
+    
     <script src="map.js"></script>
 </body>
 </html>
