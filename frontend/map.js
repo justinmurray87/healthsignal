@@ -7,6 +7,10 @@
 //temp token for local testing
 //const MAPBOX_TOKEN = 'YOUR_MAPBOX_ACCESS_TOKEN';
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiaGVscHNpZ25hbCIsImEiOiJjbWR2dmh2NWcwbDNuMmxxNThnMDA1OTg1In0.L5jlQuL3rmaWz3UpNrxo0g';
+
+// CSV URL for the published Google Sheet
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/1vw2RrQee4Lt-xIKoOw3B-U60GVim7resu2-8LgdZbh0/export?format=csv&gid=0';
+
 // Set Mapbox access token
 mapboxgl.accessToken = MAPBOX_TOKEN;
 
@@ -23,25 +27,75 @@ const map = new mapboxgl.Map({
 let markers = [];
 let eventsData = [];
 
+// Function to parse CSV data
+function parseCSV(csvText) {
+  const lines = csvText.split('\n');
+  const headers = lines[0].split(',').map(header => header.trim().replace(/"/g, ''));
+  const data = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    const values = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let j = 0; j < line.length; j++) {
+      const char = line[j];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        values.push(current.trim().replace(/"/g, ''));
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    values.push(current.trim().replace(/"/g, ''));
+    
+    if (values.length === headers.length) {
+      const row = {};
+      headers.forEach((header, index) => {
+        row[header] = values[index];
+      });
+      data.push(row);
+    }
+  }
+  
+  return data;
+}
+
+// Function to fetch data from Google Sheets CSV
+async function fetchSheetData() {
+  try {
+    console.log("Fetching data from CSV URL:", CSV_URL);
+    const response = await fetch(CSV_URL);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const csvText = await response.text();
+    console.log("Raw CSV data received:", csvText.substring(0, 500) + "...");
+    
+    const data = parseCSV(csvText);
+    console.log("Parsed CSV data:", data);
+    
+    eventsData = data;
+    renderMarkers();
+    updateTicker();
+    
+  } catch (error) {
+    console.error("Error fetching sheet data:", error);
+    document.getElementById('tickerContent').innerHTML = '<span class="ticker-item">Error loading crisis data</span>';
+  }
+}
+
 // Initialize the application
 function init() {
-  // Fetch data from Google Sheets using Tabletop
-  console.log("Initializing Tabletop.js...");
-  console.log("CSV URL:", 'https://docs.google.com/spreadsheets/d/1vw2RrQee4Lt-xIKoOw3B-U60GVim7resu2-8LgdZbh0/export?format=csv&gid=0');
-  
-  Tabletop.init({
-    key: '1vw2RrQee4Lt-xIKoOw3B-U60GVim7resu2-8LgdZbh0',
-    simpleSheet: true,
-    callback: (data) => {
-      console.log("Data received from Google Sheet:", data);
-      eventsData = data;
-      renderMarkers();
-    },
-    error: (error) => {
-      console.error("Tabletop.js error:", error);
-    },
-    debug: true
-  });
+  // Fetch data from Google Sheets CSV
+  fetchSheetData();
   
   // Add listeners for filters
   document.getElementById('typeFilter').addEventListener('change', renderMarkers);
@@ -50,10 +104,6 @@ function init() {
   
   // Initialize severity label
   updateSeverityLabel();
-  
-  // Initialize ticker
-  updateTicker();
-  setInterval(updateTicker, 30000); // Update every 30 seconds
 }
 
 // Update severity label
