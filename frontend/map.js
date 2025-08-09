@@ -29,6 +29,7 @@ function init() {
   Tabletop.init({
     url: 'https://docs.google.com/spreadsheets/d/1vw2RrQee4Lt-xIKoOw3B-U60GVim7resu2-8LgdZbh0/export?format=csv&gid=0',
     callback: (data) => {
+      console.log("Data received from Google Sheet:", data);
       eventsData = data;
       renderMarkers();
     },
